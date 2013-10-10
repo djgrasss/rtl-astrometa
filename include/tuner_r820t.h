@@ -2,6 +2,7 @@
 #define _R820T_TUNER_H
 
 #define R820T_I2C_ADDR		0x34
+#define R828D_I2C_ADDR		0x74
 #define R820T_CHECK_ADDR	0x00
 #define R820T_CHECK_VAL		0x69
 

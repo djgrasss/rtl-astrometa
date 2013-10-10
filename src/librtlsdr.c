@@ -263,6 +263,7 @@ static rtlsdr_dongle_t known_devices[] = {
 	{ 0x1b80, 0xd394, "DIKOM USB-DVBT HD" },
 	{ 0x1b80, 0xd395, "Peak 102569AGPK" },
 	{ 0x1b80, 0xd39d, "SVEON STV20 DVB-T USB & FM" },
+	{ 0x15f4, 0x0131, "Astrometa DVB-T/DVB-T2/SDR/DAB/FM" },
 };
 
 #define DEFAULT_BUF_NUMBER	32
@@ -1303,7 +1304,7 @@ int rtlsdr_open(rtlsdr_dev_t **out_dev, uint32_t index)
 	libusb_device *device = NULL;
 	uint32_t device_count = 0;
 	struct libusb_device_descriptor dd;
-	uint8_t reg;
+	uint8_t reg, reg2;
 	ssize_t cnt;
 
 	dev = malloc(sizeof(rtlsdr_dev_t));
@@ -1405,8 +1406,9 @@ int rtlsdr_open(rtlsdr_dev_t **out_dev, uint32_t index)
 	}
 
 	reg = rtlsdr_i2c_read_reg(dev, R820T_I2C_ADDR, R820T_CHECK_ADDR);
-	if (reg == R820T_CHECK_VAL) {
-		fprintf(stderr, "Found Rafael Micro R820T tuner\n");
+	reg2 = rtlsdr_i2c_read_reg(dev, R828D_I2C_ADDR, R820T_CHECK_ADDR);
+	if ((reg == R820T_CHECK_VAL) || (reg2 == R820T_CHECK_VAL)) {
+		fprintf(stderr, "Found Rafael Micro %s tuner\n", (reg == R820T_CHECK_VAL) ? "R820T":"R828D");
 		dev->tuner_type = RTLSDR_TUNER_R820T;
 
 		/* disable Zero-IF mode */
