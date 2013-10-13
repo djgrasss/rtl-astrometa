@@ -1468,8 +1468,7 @@ R828_ErrCode R828_PLL(void *pTuner, UINT32 LO_Freq, R828_Standard_Type R828_Stan
 
 	VCO_Freq = (uint64_t)(LO_Freq * (uint64_t)MixDiv);
 	Nint     = (UINT8) (VCO_Freq / 2 / PLL_Ref);
-	VCO_Fra  = (UINT16) ((VCO_Freq - (PLL_Ref*Nint)) / 1000);
-
+	VCO_Fra  = (UINT16) ((VCO_Freq - (2 * PLL_Ref*Nint)) / 1000);
 	//FIXME hack
 	PLL_Ref /= 1000;
 
