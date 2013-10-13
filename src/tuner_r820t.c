@@ -124,7 +124,7 @@ I2C_Write_Len(void *pTuner, R828_I2C_LEN_TYPE *I2C_Info)
 //			FUNCTION_SUCCESS)
 //			goto error_status_set_tuner_registers;
 
-		if (rtlsdr_i2c_write_fn(pTuner, R820T_I2C_ADDR, WritingBuffer, WritingByteNum + 1) < 0)
+		if (rtlsdr_i2c_write_fn(pTuner, R828D_I2C_ADDR, WritingBuffer, WritingByteNum + 1) < 0)
 			return RT_Fail;
 	}
 
@@ -152,7 +152,7 @@ I2C_Read_Len(void *pTuner, R828_I2C_LEN_TYPE *I2C_Info)
 //	if(pI2cBridge->ForwardI2cWritingCmd(pI2cBridge, DeviceAddr, &RegStartAddr, LEN_1_BYTE) != FUNCTION_SUCCESS)
 //		goto error_status_set_tuner_register_reading_address;
 
-	if (rtlsdr_i2c_write_fn(pTuner, R820T_I2C_ADDR, &RegStartAddr, 1) < 0)
+	if (rtlsdr_i2c_write_fn(pTuner, R828D_I2C_ADDR, &RegStartAddr, 1) < 0)
 		return RT_Fail;
 
 	// Get tuner register bytes.
@@ -161,7 +161,7 @@ I2C_Read_Len(void *pTuner, R828_I2C_LEN_TYPE *I2C_Info)
 //	if(pI2cBridge->ForwardI2cReadingCmd(pI2cBridge, DeviceAddr, ReadingBytes, ByteNum) != FUNCTION_SUCCESS)
 //		goto error_status_get_tuner_registers;
 
-	if (rtlsdr_i2c_read_fn(pTuner, R820T_I2C_ADDR, ReadingBytes, ByteNum) < 0)
+	if (rtlsdr_i2c_read_fn(pTuner, R828D_I2C_ADDR, ReadingBytes, ByteNum) < 0)
 		return RT_Fail;
 
 	for(i = 0; i<ByteNum; i++)
@@ -196,7 +196,7 @@ I2C_Write(void *pTuner, R828_I2C_TYPE *I2C_Info)
 
 //	printf("called %s: %02x -> %02x\n", __FUNCTION__, WritingBuffer[0], WritingBuffer[1]);
 
-	if (rtlsdr_i2c_write_fn(pTuner, R820T_I2C_ADDR, WritingBuffer, 2) < 0)
+	if (rtlsdr_i2c_write_fn(pTuner, R828D_I2C_ADDR, WritingBuffer, 2) < 0)
 		return RT_Fail;
 
 	return RT_Success;
@@ -248,7 +248,7 @@ UINT8 R828_iniArry[27] = {0x83, 0x32, 0x75, 0xC0, 0x40, 0xD6, 0x6C, 0xF5, 0x63,
 #endif
 
 UINT8 R828_ADDRESS=0x34;
-UINT8 Rafael_Chip = R820T;
+UINT8 Rafael_Chip = R828D;
 //----------------------------------------------------------//
 //                   Internal Structs                       //
 //----------------------------------------------------------//
@@ -992,6 +992,9 @@ R828_ErrCode R828_Init(void *pTuner)
 	  {
 		  Xtal_cap_sel = XTAL_HIGH_CAP_0P;
 	  }
+//      else if (Rafael_Chip==R828D) {
+//          //Xtal_cap_sel = XTAL_HIGH_CAP_0P;
+//      }
 	  else
 	  {
           if(R828_Xtal_Check(pTuner) != RT_Success)        //1st
@@ -1363,18 +1366,20 @@ R828_ErrCode R828_PLL(void *pTuner, UINT32 LO_Freq, R828_Standard_Type R828_Stan
 	//UINT8  Judge    = 0;
 	VCO_fine_tune = 0;
 
-#if 0
+#if 1
 	if ((Rafael_Chip==R620D) || (Rafael_Chip==R828D) || (Rafael_Chip==R828))  //X'tal can't not exceed 20MHz for ATV
 	{
 		if(R828_Standard <= SECAM_L1)	  //ref set refdiv2, reffreq = Xtal/2 on ATV application
 		{
 			R828_Arry[11] |= 0x10; //b4=1
 			PLL_Ref = R828_Xtal /2;
+            fprintf(stderr, "This happened 1!\n");
 		}
 		else //DTV, FilCal, IMR
 		{
 			R828_Arry[11] &= 0xEF;
-			PLL_Ref = R828_Xtal;
+			PLL_Ref = R828_Xtal*1000;
+            fprintf(stderr, "This happened 2!\n");
 		}
 	}
 	else
@@ -1383,20 +1388,26 @@ R828_ErrCode R828_PLL(void *pTuner, UINT32 LO_Freq, R828_Standard_Type R828_Stan
 		{
 			R828_Arry[11] |= 0x10; //b4=1
 			PLL_Ref = R828_Xtal /2;
+            fprintf(stderr, "This happened 3!\n");
+
 		}
 		else
 		{
+            fprintf(stderr, "This happened 4!\n");
 			R828_Arry[11] &= 0xEF;
 			PLL_Ref = R828_Xtal;
 		}
 	}
 #endif
 	//FIXME hack
-	R828_Arry[11] &= 0xEF;
-	PLL_Ref = rtlsdr_get_tuner_clock(pTuner);
+	//R828_Arry[11] &= 0xEF;
+	//PLL_Ref = rtlsdr_get_tuner_clock(pTuner);
+//    PLL_Ref = 16000000;
+    fprintf(stderr, "[R820T] XTAL CAP & Drive 0x%x\n", R828_Arry[11]);
 
 	R828_I2C.RegAddr = 0x10;
 	R828_I2C.Data = R828_Arry[11];
+    fprintf(stderr, "[R820T] PLL_Ref %u Hz!\n", PLL_Ref);
 	if(I2C_Write(pTuner, &R828_I2C) != RT_Success)
 		return RT_Fail;
 
@@ -1404,6 +1415,7 @@ R828_ErrCode R828_PLL(void *pTuner, UINT32 LO_Freq, R828_Standard_Type R828_Stan
 	R828_I2C.RegAddr = 0x1A;
 	R828_Arry[21]    = R828_Arry[21] & 0xF3;
 	R828_I2C.Data    = R828_Arry[21];
+    fprintf(stderr, "[R820T] set pll autotune 0x%x\n", R828_Arry[21]);
 	if(I2C_Write(pTuner, &R828_I2C) != RT_Success)
 		return RT_Fail;
 
@@ -1437,26 +1449,31 @@ R828_ErrCode R828_PLL(void *pTuner, UINT32 LO_Freq, R828_Standard_Type R828_Stan
 
 	VCO_fine_tune = (R828_I2C_Len.Data[4] & 0x30)>>4;
 
-	if(VCO_fine_tune > VCO_pwr_ref)
+    fprintf(stderr, "[R820T] VCO fine tune read %x %x %x %x %x\n", R828_I2C_Len.Data[0],R828_I2C_Len.Data[1],R828_I2C_Len.Data[2],R828_I2C_Len.Data[3],R828_I2C_Len.Data[4]);
+
+#define VCO_pwr_ref2   0x01
+
+	if(VCO_fine_tune > VCO_pwr_ref2)
 		DivNum = DivNum - 1;
-	else if(VCO_fine_tune < VCO_pwr_ref)
+	else if(VCO_fine_tune < VCO_pwr_ref2)
 	    DivNum = DivNum + 1; 
 	
 	R828_I2C.RegAddr = 0x10;
 	R828_Arry[11] &= 0x1F;
 	R828_Arry[11] |= (DivNum << 5);
 	R828_I2C.Data = R828_Arry[11];
+    fprintf(stderr, "[R820T] VCO fine tune 0x%x\n", R828_Arry[11]);
 	if(I2C_Write(pTuner, &R828_I2C) != RT_Success)
 		return RT_Fail;
 
 	VCO_Freq = (uint64_t)(LO_Freq * (uint64_t)MixDiv);
 	Nint     = (UINT8) (VCO_Freq / 2 / PLL_Ref);
-	VCO_Fra  = (UINT16) ((VCO_Freq - 2 * PLL_Ref * Nint) / 1000);
+	VCO_Fra  = (UINT16) ((VCO_Freq - (PLL_Ref*Nint)) / 1000);
 
 	//FIXME hack
 	PLL_Ref /= 1000;
 
-//	printf("VCO_Freq = %lu, Nint= %u, VCO_Fra= %lu, LO_Freq= %u, MixDiv= %u\n", VCO_Freq, Nint, VCO_Fra, LO_Freq, MixDiv);
+	fprintf(stderr, "VCO_Freq = %lu, Nint= %u, VCO_Fra= %lu, LO_Freq= %u, MixDiv= %u\n", VCO_Freq, Nint, VCO_Fra, LO_Freq, MixDiv);
 
 	//boundary spur prevention
 	if (VCO_Fra < PLL_Ref/64)           //2*PLL_Ref/128
@@ -1475,8 +1492,9 @@ R828_ErrCode R828_PLL(void *pTuner, UINT32 LO_Freq, R828_Standard_Type R828_Stan
 
 	if (Nint > 63) {
 		fprintf(stderr, "[R820T] No valid PLL values for %u Hz!\n", LO_Freq);
-		return RT_Fail;
+//		return RT_Fail;
 	}
+
 
 	//N & S
 	Ni       = (Nint - 13) / 4;
@@ -1485,7 +1503,7 @@ R828_ErrCode R828_PLL(void *pTuner, UINT32 LO_Freq, R828_Standard_Type R828_Stan
 	R828_Arry[15]  = 0x00;
 	R828_Arry[15] |= (Ni + (Si << 6));
 	R828_I2C.Data = R828_Arry[15];
-	
+    fprintf(stderr, "[R820T] N & S 0x%x\n", R828_Arry[15]);	
 	if(I2C_Write(pTuner, &R828_I2C) != RT_Success)
 	  return RT_Fail;
 
@@ -1494,6 +1512,7 @@ R828_ErrCode R828_PLL(void *pTuner, UINT32 LO_Freq, R828_Standard_Type R828_Stan
 	R828_Arry[13] &= 0xF7;
 	if(VCO_Fra == 0)
 		R828_Arry[13] |= 0x08;
+    fprintf(stderr, "[R820T] pw_sdm 0x%x\n", R828_Arry[13]);	
 	R828_I2C.Data = R828_Arry[13];
 	if(I2C_Write(pTuner, &R828_I2C) != RT_Success)
 		return RT_Fail;
@@ -1517,11 +1536,13 @@ R828_ErrCode R828_PLL(void *pTuner, UINT32 LO_Freq, R828_Standard_Type R828_Stan
 	R828_I2C.RegAddr = 0x16;
 	R828_Arry[17]    = (UINT8) SDM16to9;
 	R828_I2C.Data    = R828_Arry[17];
+    fprintf(stderr, "[R820T] SDM16to9 0x%x\n", R828_Arry[17]);
 	if(I2C_Write(pTuner, &R828_I2C) != RT_Success)
 		return RT_Fail;
 	R828_I2C.RegAddr = 0x15;
 	R828_Arry[16]    = (UINT8) SDM8to1;
 	R828_I2C.Data    = R828_Arry[16];
+    fprintf(stderr, "[R820T] SDM8to1 0x%x\n", R828_Arry[16]);
 	if(I2C_Write(pTuner, &R828_I2C) != RT_Success)
 		return RT_Fail;
 
@@ -1574,6 +1595,15 @@ R828_ErrCode R828_MUX(void *pTuner, UINT32 RF_KHz)
 
 	RT_Reg08   = 0;
 	RT_Reg09   = 0;
+/*
+		R828_Freq_Info.OPEN_D=0x00; // high
+		R828_Freq_Info.RF_MUX_PLOY = 0x02;  //R26[7:6]=0 (LPF)  R26[1:0]=2 (low)
+		R828_Freq_Info.TF_C=0x34;     //R27[7:0]  band12,band11
+		R828_Freq_Info.XTAL_CAP20P=0x01;  //R16[1:0]  10pF (01)  
+		R828_Freq_Info.XTAL_CAP10P=0x01; 
+		R828_Freq_Info.XTAL_CAP0P=0x00;
+		R828_Freq_Info.IMR_MEM = 0;
+*/
 
 	//Freq_Info_Type Freq_Info1;
 	Freq_Info1 = R828_Freq_Sel(RF_KHz);
@@ -1603,6 +1633,8 @@ R828_ErrCode R828_MUX(void *pTuner, UINT32 RF_KHz)
 	// XTAL CAP & Drive
 	R828_I2C.RegAddr = 0x10;
 	R828_Arry[11] &= 0xF4;
+    fprintf(stderr, "[R820T] Xtal_cap_sel = %d\n", Xtal_cap_sel);
+
 	switch(Xtal_cap_sel)
 	{
 	   case XTAL_LOW_CAP_30P:
@@ -1627,6 +1659,7 @@ R828_ErrCode R828_MUX(void *pTuner, UINT32 RF_KHz)
 		   break;
 	}
 	R828_I2C.Data    = R828_Arry[11];
+    fprintf(stderr, "[R820T] Set XTAL CAP & Drive 0x%x\n", R828_Arry[11]);
 	if(I2C_Write(pTuner, &R828_I2C) != RT_Success)
 		return RT_Fail;
 
@@ -1646,6 +1679,7 @@ R828_ErrCode R828_MUX(void *pTuner, UINT32 RF_KHz)
 	R828_Arry[3] = R828_iniArry[3] & 0xC0;
 	R828_Arry[3] = R828_Arry[3] | RT_Reg08;
 	R828_I2C.Data = R828_Arry[3];
+    fprintf(stderr, "[R820T] Set_IMR reg8 0x%x\n", R828_Arry[3]);
 	if(I2C_Write(pTuner, &R828_I2C) != RT_Success)
 		return RT_Fail;
 
@@ -1653,6 +1687,7 @@ R828_ErrCode R828_MUX(void *pTuner, UINT32 RF_KHz)
 	R828_Arry[4] = R828_iniArry[4] & 0xC0;
 	R828_Arry[4] = R828_Arry[4] | RT_Reg09;
 	R828_I2C.Data =R828_Arry[4]  ;
+    fprintf(stderr, "[R820T] Set_IMR reg9 0x%x\n", R828_Arry[4]);
 	if(I2C_Write(pTuner, &R828_I2C) != RT_Success)
 		return RT_Fail;
 
@@ -2357,6 +2392,8 @@ R828_ErrCode R828_SetStandard(void *pTuner, R828_Standard_Type RT_Standard)
 	R828_I2C.RegAddr = 0x13;
 	R828_Arry[14]    = (R828_Arry[14] & 0xC0) | VER_NUM;
 	R828_I2C.Data    = R828_Arry[14];
+    fprintf(stderr, "[R820T] Record version 0x%x\n", R828_Arry[14]);
+	R828_I2C.Data    = 0x39;    // emulate the new tuner driver
 	if(I2C_Write(pTuner, &R828_I2C) != RT_Success)
 	    return RT_Fail;
 
@@ -2371,12 +2408,26 @@ R828_ErrCode R828_SetStandard(void *pTuner, R828_Standard_Type RT_Standard)
 
 		//R828_Delay_MS(1);
 	}
-
+/*
+		R828_Sys_Info.IF_KHz=3570;
+		R828_Sys_Info.BW=BW_6M;
+		R828_Sys_Info.FILT_CAL_LO=56000; //52000->56000
+		R828_Sys_Info.FILT_GAIN=0x10;  //+3dB, 6MHz on
+		R828_Sys_Info.IMG_R=0x00;		//image negative
+		R828_Sys_Info.FILT_Q=0x10;		//R10[4]:low Q(1'b1)
+		R828_Sys_Info.HP_COR=0x6B;		// 1.7M disable, +2cap, 1.0MHz		
+		R828_Sys_Info.EXT_ENABLE=0x60;  //R30[6]=1 ext enable; R30[5]:1 ext at LNA max-1 
+		R828_Sys_Info.LOOP_THROUGH=0x00; //R5[7], LT ON
+		R828_Sys_Info.LT_ATT=0x00;       //R31[7], LT ATT enable
+		R828_Sys_Info.FLT_EXT_WIDEST=0x00;//R15[7]: FLT_EXT_WIDE OFF
+		R828_Sys_Info.POLYFIL_CUR=0x60;  //R25[6:5]:Min
+*/
+fprintf(stderr, "Here 1\n");
 	// Look Up System Dependent Table
 	Sys_Info1 = R828_Sys_Sel(RT_Standard);
 	R828_IF_khz = Sys_Info1.IF_KHz;
 	R828_CAL_LO_khz = Sys_Info1.FILT_CAL_LO;
-
+/*
 	// Filter Calibration
     if(R828_Fil_Cal_flag[RT_Standard] == FALSE)
 	{
@@ -2412,11 +2463,13 @@ R828_ErrCode R828_SetStandard(void *pTuner, R828_Standard_Type RT_Standard)
 		}
         R828_Fil_Cal_flag[RT_Standard] = TRUE;
 	}
-
+*/
+fprintf(stderr, "Here 2\n");
 	// Set Filter Q
 	R828_Arry[5]  = (R828_Arry[5] & 0xE0) | Sys_Info1.FILT_Q | R828_Fil_Cal_code[RT_Standard];  
 	R828_I2C.RegAddr  = 0x0A;
 	R828_I2C.Data     = R828_Arry[5];
+    fprintf(stderr, "[R820T] Set filter q 0x%x\n", R828_Arry[5]);
 	if(I2C_Write(pTuner, &R828_I2C) != RT_Success)
 		return RT_Fail;
 
@@ -2424,6 +2477,7 @@ R828_ErrCode R828_SetStandard(void *pTuner, R828_Standard_Type RT_Standard)
 	R828_Arry[6]= (R828_Arry[6] & 0x10) | Sys_Info1.HP_COR;
 	R828_I2C.RegAddr  = 0x0B;
 	R828_I2C.Data     = R828_Arry[6];
+    fprintf(stderr, "[R820T] Set BW, Filter_gain, & HP corner 0x%x\n", R828_Arry[6]);
 	if(I2C_Write(pTuner, &R828_I2C) != RT_Success)
 		return RT_Fail;
 
@@ -2431,6 +2485,7 @@ R828_ErrCode R828_SetStandard(void *pTuner, R828_Standard_Type RT_Standard)
 	R828_Arry[2]  = (R828_Arry[2] & 0x7F) | Sys_Info1.IMG_R;  
 	R828_I2C.RegAddr  = 0x07;
 	R828_I2C.Data     = R828_Arry[2];
+    fprintf(stderr, "[R820T] Set Img_R 0x%x\n", R828_Arry[2]);
 	if(I2C_Write(pTuner, &R828_I2C) != RT_Success)
 		return RT_Fail;
 
@@ -2439,6 +2494,7 @@ R828_ErrCode R828_SetStandard(void *pTuner, R828_Standard_Type RT_Standard)
 	R828_Arry[1]  = (R828_Arry[1] & 0xCF) | Sys_Info1.FILT_GAIN;  
 	R828_I2C.RegAddr  = 0x06;
 	R828_I2C.Data     = R828_Arry[1];
+    fprintf(stderr, "[R820T] Set filt_3dB, V6MHz 0x%x\n", R828_Arry[1]);
 	if(I2C_Write(pTuner, &R828_I2C) != RT_Success)
 		return RT_Fail;
 
@@ -2446,21 +2502,24 @@ R828_ErrCode R828_SetStandard(void *pTuner, R828_Standard_Type RT_Standard)
 	R828_Arry[25]  = (R828_Arry[25] & 0x9F) | Sys_Info1.EXT_ENABLE;  
 	R828_I2C.RegAddr  = 0x1E;
 	R828_I2C.Data     = R828_Arry[25];
+    fprintf(stderr, "[R820T] Set channel filter extension 0x%x\n", R828_Arry[25]);
 	if(I2C_Write(pTuner, &R828_I2C) != RT_Success)
 		return RT_Fail;
 
 
 	//Loop through
-	R828_Arry[0]  = (R828_Arry[0] & 0x7F) | Sys_Info1.LOOP_THROUGH;  
+	R828_Arry[0]  = (R828_Arry[0]/* & 0x7F*/) | Sys_Info1.LOOP_THROUGH;  
 	R828_I2C.RegAddr  = 0x05;
 	R828_I2C.Data     = R828_Arry[0];
+    fprintf(stderr, "[R820T] Set Loop through 0x%x\n", R828_Arry[0]);
 	if(I2C_Write(pTuner, &R828_I2C) != RT_Success)
 		return RT_Fail;
 
 	//Loop through attenuation
-	R828_Arry[26]  = (R828_Arry[26] & 0x7F) | Sys_Info1.LT_ATT;  
+	R828_Arry[26]  = (R828_Arry[26]/* & 0x7F*/) | Sys_Info1.LT_ATT;  
 	R828_I2C.RegAddr  = 0x1F;
 	R828_I2C.Data     = R828_Arry[26];
+    fprintf(stderr, "[R820T] Set Loop through attenuation 0x%x\n", R828_Arry[26]);
 	if(I2C_Write(pTuner, &R828_I2C) != RT_Success)
 		return RT_Fail;
 
@@ -2468,6 +2527,7 @@ R828_ErrCode R828_SetStandard(void *pTuner, R828_Standard_Type RT_Standard)
 	R828_Arry[10]  = (R828_Arry[10] & 0x7F) | Sys_Info1.FLT_EXT_WIDEST;  
 	R828_I2C.RegAddr  = 0x0F;
 	R828_I2C.Data     = R828_Arry[10];
+    fprintf(stderr, "[R820T] Set filter extention widest 0x%x\n", R828_Arry[10]);
 	if(I2C_Write(pTuner, &R828_I2C) != RT_Success)
 		return RT_Fail;
 
@@ -2475,6 +2535,7 @@ R828_ErrCode R828_SetStandard(void *pTuner, R828_Standard_Type RT_Standard)
 	R828_Arry[20]  = (R828_Arry[20] & 0x9F) | Sys_Info1.POLYFIL_CUR;  
 	R828_I2C.RegAddr  = 0x19;
 	R828_I2C.Data     = R828_Arry[20];
+    fprintf(stderr, "[R820T] Set RF poly filter current 0x%x\n", R828_Arry[20]);
 	if(I2C_Write(pTuner, &R828_I2C) != RT_Success)
 		return RT_Fail;
 

@@ -521,6 +521,15 @@ void rtlsdr_init_baseband(rtlsdr_dev_t *dev)
 	rtlsdr_write_reg(dev, USBB, USB_EPA_MAXPKT, 0x0002, 2);
 	rtlsdr_write_reg(dev, USBB, USB_EPA_CTL, 0x1002, 2);
 
+    /* Setup gpio's */
+	rtlsdr_write_reg(dev, SYSB, GPO, 0x98, 1);
+	rtlsdr_write_reg(dev, SYSB, GPD, 0x03, 1);
+	rtlsdr_write_reg(dev, SYSB, GPOE, 0xdc, 1);
+
+	rtlsdr_write_reg(dev, SYSB, GPO, 0x88, 1);
+	rtlsdr_write_reg(dev, SYSB, GPD, 0x03, 1);
+	rtlsdr_write_reg(dev, SYSB, GPOE, 0xdc, 1);
+
 	/* poweron demod */
 	rtlsdr_write_reg(dev, SYSB, DEMOD_CTL_1, 0x22, 1);
 	rtlsdr_write_reg(dev, SYSB, DEMOD_CTL, 0xe8, 1);

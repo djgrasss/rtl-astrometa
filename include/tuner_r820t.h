@@ -14,8 +14,8 @@
 #define VERSION   "R820T_v1.49_ASTRO"
 #define VER_NUM  49
 
-#define USE_16M_XTAL		FALSE
-#define R828_Xtal		28800
+#define USE_16M_XTAL		TRUE
+#define R828_Xtal		16000
 
 #define USE_DIPLEXER		FALSE
 #define TUNER_CLK_OUT		TRUE
